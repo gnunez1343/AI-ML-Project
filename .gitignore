@@ -64,3 +64,10 @@ backend/.env
 *.swo
 .idea/
 .vscode/settings.json
+
+# Audio uploads
+backend/uploads/*.wav
+backend/uploads/*.mp3
+backend/uploads/*.m4a
+backend/uploads/*.ogg
+backend/uploads/*.webm
