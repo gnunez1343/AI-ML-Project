@@ -37,3 +37,30 @@ huggingface/
 .DS_Store
 *.log
 .obvious-install/
+
+# ─── Node / Bun ──────────────────────────────────────────────
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+bun.lockb
+
+# ─── Python (backend) ────────────────────────────────────────
+backend/__pycache__/
+backend/*.py[cod]
+backend/.venv/
+backend/venv/
+backend/.env
+
+# ─── Environment ─────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ─── Editor ──────────────────────────────────────────────────
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/settings.json
