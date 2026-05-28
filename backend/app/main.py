@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth import router as auth_router
 from app.api.health import router as health_router
+from app.api.sessions import router as sessions_router
 from app.database import init_db
 
 
@@ -37,6 +38,7 @@ app.add_middleware(
 # Routers
 app.include_router(health_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
+app.include_router(sessions_router, prefix="/api")
 
 
 @app.get("/")

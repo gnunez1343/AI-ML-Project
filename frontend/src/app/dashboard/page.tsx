@@ -1,34 +1,92 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mic } from "lucide-react";
+import { Mic, Clock } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { Avatar } from "@/components/ui/Avatar";
+import { sessionsApi } from "@/lib/api";
 import type { BadgeVariant } from "@/components/ui/Badge";
-import type { TherapySession } from "@/types/session";
+import type { SessionListItem, SessionStatus } from "@/types/session";
 
-// Empty for MVP — sessions fetched from API in future sprint
-const MOCK_SESSIONS: TherapySession[] = [];
-
-const STATUS_VARIANT: Record<TherapySession["status"], BadgeVariant> = {
-  recording: "error",
+const STATUS_VARIANT: Record<SessionStatus, BadgeVariant> = {
+  recording:  "error",
   processing: "warning",
-  draft: "info",
-  approved: "success",
+  draft:      "info",
+  approved:   "success",
 };
 
-const STATUS_LABEL: Record<TherapySession["status"], string> = {
-  recording: "Recording",
+const STATUS_LABEL: Record<SessionStatus, string> = {
+  recording:  "Recording",
   processing: "Processing",
-  draft: "Draft",
-  approved: "Approved",
+  draft:      "Draft",
+  approved:   "Approved",
 };
+
+const SESSION_TYPE_LABEL: Record<string, string> = {
+  individual: "Individual",
+  couples:    "Couples",
+  family:     "Family",
+  group:      "Group",
+  intake:     "Intake",
+};
+
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((n) => n[0] ?? "")
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+  });
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-US", {
+    hour: "numeric", minute: "2-digit",
+  });
+}
+
+function formatDuration(seconds: number | null): string {
+  if (!seconds) return "";
+  const m = Math.floor(seconds / 60);
+  return m > 0 ? m + " min" : seconds + "s";
+}
 
 export default function DashboardPage() {
   const router = useRouter();
-  const hasSessions = MOCK_SESSIONS.length > 0;
+
+  const [sessions, setSessions] = useState<SessionListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const data = await sessionsApi.list();
+        if (!cancelled) setSessions(data);
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Failed to load sessions:", err);
+          setError("Failed to load sessions");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  const hasSessions = sessions.length > 0;
 
   return (
     <div>
@@ -40,23 +98,55 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      {hasSessions ? (
+      {loading ? (
+        <div className="flex justify-center py-20">
+          <div className="animate-spin h-8 w-8 rounded-full border-4 border-sage-200 border-t-sage-600" />
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <p className="text-sm text-risk-critical mb-3">{error}</p>
+          <Button size="sm" variant="secondary" onClick={() => window.location.reload()}>
+            Retry
+          </Button>
+        </div>
+      ) : hasSessions ? (
         <Card>
           <div className="divide-y divide-warm-100">
-            {MOCK_SESSIONS.map((s) => (
-              <div key={s.id} className="flex items-center justify-between py-3 px-4 hover:bg-warm-50 rounded-md">
+            {sessions.map((s) => (
+              <div
+                key={s.id}
+                onClick={() => router.push("/dashboard/sessions/" + s.id)}
+                className="flex items-center gap-3 py-3 px-4 hover:bg-warm-50 rounded-md cursor-pointer transition-colors"
+              >
+                {/* Avatar */}
+                <Avatar initials={getInitials(s.patient_name)} size="sm" />
+
+                {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-ink-900 truncate">{s.patientName}</p>
-                  <p className="text-xs text-ink-400 mt-0.5">
-                    {new Date(s.date).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}{" "}
-                    &middot; {s.duration} min
+                  <p className="text-sm font-medium text-ink-900 truncate">
+                    {s.patient_name}
+                  </p>
+                  <p className="text-xs text-ink-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                    <span>{SESSION_TYPE_LABEL[s.session_type] ?? s.session_type}</span>
+                    <span>·</span>
+                    <span>{formatDate(s.created_at)}</span>
+                    <span>·</span>
+                    <span>{formatTime(s.created_at)}</span>
+                    {s.duration_seconds && (
+                      <>
+                        <span>·</span>
+                        <span className="flex items-center gap-0.5">
+                          <Clock size={10} />
+                          {formatDuration(s.duration_seconds)}
+                        </span>
+                      </>
+                    )}
                   </p>
                 </div>
-                <Badge variant={STATUS_VARIANT[s.status]}>{STATUS_LABEL[s.status]}</Badge>
+
+                <Badge variant={STATUS_VARIANT[s.status]}>
+                  {STATUS_LABEL[s.status]}
+                </Badge>
               </div>
             ))}
           </div>
